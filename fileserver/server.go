@@ -138,6 +138,16 @@ func NewServer(addr, cert, key, ca string) (*Server, error) {
 	return fs, nil
 }
 
+// NewPlainServer creates a new file server. The server will listen for HTTP
+// requests on the addr address.
+func NewPlainServer(addr string) (*Server, error) {
+        fs := &Server{
+                // Network address this file server listens on
+                addr: addr,
+        }
+        return fs, nil
+}
+
 // Serve listens for new incoming HTTP requests and serves them
 func (fs *Server) Serve() error {
 	mux := http.NewServeMux()
@@ -152,6 +162,21 @@ func (fs *Server) Serve() error {
 		// IdleTimeout: 120 * time.Second, // Go v1.8 onwards
 	}
 	return srv.ListenAndServeTLS("", "")
+}
+
+// Serve listens for new incoming HTTP requests and serves them
+func (fs *Server) PlainServe() error {
+        mux := http.NewServeMux()
+        mux.HandleFunc("/file", handleGetFile)
+        mux.HandleFunc("/", http.NotFound)
+        srv := &http.Server{
+                Addr:      fs.addr,
+                Handler:   mux,
+                // ReadTimeout:  60 * time.Second,  // TODO: what these values should be?
+                // WriteTimeout: 60 * time.Second,
+                // IdleTimeout: 120 * time.Second, // Go v1.8 onwards
+        }
+        return srv.ListenAndServe("", "")
 }
 
 // handleGetFile handles GET requests for files. The form of the

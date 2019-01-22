@@ -86,6 +86,18 @@ func NewClient(useHttp1 bool, cert, key, ca string) (*Client, error) {
 	return &Client{http.Client{Transport: tr}}, nil
 }
 
+// NewPlainClient creates a new client to interact with a fileserver.
+// Set useHttp1 to true for this client to use HTTP1 instead of HTTP2, which is the default.
+func NewPlainClient(useHttp1 bool) (*Client, error) {
+        tr := &http.Transport{
+                MaxIdleConnsPerHost: 100, // TODO: what would be a sensible value?
+        }
+        if !useHttp1 {
+                http2.ConfigureTransport(tr) // Required: see issue https://github.com/golang/go/issues/17051
+        }
+        return &Client{http.Client{Transport: tr}}, nil
+}
+
 type DownloadReport struct {
 
 	// Start and end times of the download operation
@@ -108,7 +120,7 @@ type DownloadReport struct {
 // DownloadFile emits a HTTP request against the specified server to download a file given its file identifier ans size (in bytes).
 // chkMode and chkAlgo specify if the checksum is to be computed by the server, the client, both or none and what algorithm should
 // be used to compute that checksum
-func (c *Client) DownloadFile(serverAddr string, fileID string, size int, chkMode ChecksumMode, chkAlgo ChecksumAlgorithm, dst io.Writer) (report DownloadReport) {
+func (c *Client) DownloadFile(serverAddr string, fileID string, size int, chkMode ChecksumMode, chkAlgo ChecksumAlgorithm, dst io.Writer, plainHttp bool) (report DownloadReport) {
 	// Verify checksum
 	algorithm := getChecksumName(chkAlgo)
 	if chkMode != ChecksumNone && algorithm == "" {
@@ -117,8 +129,13 @@ func (c *Client) DownloadFile(serverAddr string, fileID string, size int, chkMod
 	}
 	doRequestChecksum := chkMode == ChecksumServerOnly || chkMode == ChecksumClientAndServer
 
+	scheme := "https"
+	if plainHttp {
+		scheme = "http"
+	}
+
 	u := &url.URL{
-		Scheme: "https",
+		Scheme: scheme,
 		Host:   serverAddr,
 		Path:   "/file",
 	}

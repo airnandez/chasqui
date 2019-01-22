@@ -31,6 +31,7 @@ type driverConfig struct {
 	http1       bool
 	meanSize    int
 	stdSize     float64
+	plainHttp   bool
 }
 
 func driverCmd() command {
@@ -46,6 +47,7 @@ func driverCmd() command {
 	fset.IntVar(&config.concurrency, "concurrency", 0, "")
 	fset.BoolVar(&config.http1, "http1", false, "")
 	fset.BoolVar(&config.help, "help", false, "")
+	fset.BoolVar(&config.plainHttp, "plain-http", false, "")
 	run := func(args []string) error {
 		fset.Usage = func() { driverUsage(args[0], os.Stderr) }
 		fset.Parse(args[1:])
@@ -70,6 +72,7 @@ func driverRun(cmdName string, config driverConfig) error {
 	debug(1, "   concurrency=%d\n", config.concurrency)
 	debug(1, "   meanSize=%d MB\n", config.meanSize)
 	debug(1, "   http1=%t\n", config.http1)
+	debug(1, "   plainHttp='%s'\n", config.plainHttp)
 
 	// Prepare collector of execution reports
 	clientAddrs := splitAndClean(config.clients)
@@ -87,6 +90,7 @@ func driverRun(cmdName string, config driverConfig) error {
 		MeanSize:    meanSize,
 		StdSize:     uint64(config.stdSize * float64(meanSize)),
 		UseHttp1:    config.http1,
+		PlainHttp:   config.plainHttp,
 	}
 	var sendGroup sync.WaitGroup
 	for _, cli := range clientAddrs {
@@ -262,6 +266,10 @@ OPTIONS:
 {{.Tab1}}-http1
 {{.Tab2}}specifies that the protocol to be used for downloading files from the
 {{.Tab2}}server is HTTP1.1 instead ofthe default HTTP/2.
+
+{{.Tab1}}-plain-http=<file>
+{{.Tab2}}uses plain HTTP without TLS.
+{{.Tab2}}Default: false
 
 {{.Tab1}}-help
 {{.Tab2}}print this help

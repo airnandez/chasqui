@@ -144,7 +144,11 @@ func clientProcessLoadRequest(config clientConfig, req *LoadRequest) (*LoadRespo
 	// Prepare the fileserver clients for serving this load request
 	fsclients := make([]*fileserver.Client, len(req.ServerAddrs))
 	for i := range req.ServerAddrs {
-		c, err := fileserver.NewClient(req.UseHttp1, config.cert, config.key, config.ca)
+		if req.PlainHttp {
+                        c, err := fileserver.NewPlainClient(req.UseHttp1)
+		} else {
+			c, err := fileserver.NewClient(req.UseHttp1, config.cert, config.key, config.ca)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("could not initialize fileserver client [%s]", err)
 		}
@@ -160,7 +164,7 @@ func clientProcessLoadRequest(config clientConfig, req *LoadRequest) (*LoadRespo
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go clientWorker(i, &wg, requests)
+		go clientWorker(i, &wg, requests, req.PlainHttp)
 	}
 
 	// Start emitting requests
@@ -254,6 +258,9 @@ type LoadRequest struct {
 	// Mean and std of the file size to request to the servers (bytes)
 	MeanSize uint64
 	StdSize  uint64
+
+	// Use plain HTTP without TLS
+	PlainHttp bool
 }
 
 type LoadResponse struct {

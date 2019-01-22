@@ -32,22 +32,22 @@ type DownloadResp struct {
 // clientWorker is the goroutine executed by each client worker. It receives incoming
 // download requests, performs the requested operation and sends the result back
 // via the channel specified in the request
-func clientWorker(workerId int, wg *sync.WaitGroup, reqChan <-chan *DownloadReq) {
+func clientWorker(workerId int, wg *sync.WaitGroup, reqChan <-chan *DownloadReq, plainHttp bool) {
 	defer wg.Done()
 	for req := range reqChan {
 		if time.Now().After(req.notAfter) {
 			continue
 		}
 		debug(1, "worker %d: processing download [seqNo:%d server:%s size:%d]", workerId, req.seqNumber, req.server, req.size)
-		req.replyTo <- processDownloadRequest(req)
+		req.replyTo <- processDownloadRequest(req, plainHttp)
 		debug(1, "worker %d seqNo:%d ended", workerId, req.seqNumber)
 	}
 }
 
 // processDownloadRequest perform a single file download against the server
 // specified in the argument request
-func processDownloadRequest(req *DownloadReq) *DownloadResp {
-	report := req.fsclient.DownloadFile(req.server, req.fileID, int(req.size), fileserver.ChecksumNone, fileserver.SHA256, ioutil.Discard)
+func processDownloadRequest(req *DownloadReq, plainHttp bool) *DownloadResp {
+	report := req.fsclient.DownloadFile(req.server, req.fileID, int(req.size), fileserver.ChecksumNone, fileserver.SHA256, ioutil.Discard, plainHttp)
 	return &DownloadResp{
 		seqNumber: req.seqNumber,
 		start:     report.Start,
